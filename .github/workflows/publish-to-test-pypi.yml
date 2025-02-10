@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Check latest version on testpypi
-        uses: KevinRohn/gh-action-pypi-package-version@v1.0.0
+        uses: KevinRohn/gh-action-pypi-package-version@main
         id: check-version
         with:
           package-name: markdown-translate-ai
@@ -28,6 +28,7 @@ jobs:
           testpypi_latest_version=${{ steps.check-version.outputs.latest-version }}
           testpypi_release_versions=${{ steps.check-version.outputs.all-releases }}
 
+          # Test outputs
           echo "Local version: $local_version"
           echo "TestPyPI latest version: $testpypi_latest_version"
           echo "TestPyPI release versions: $testpypi_release_versions"
