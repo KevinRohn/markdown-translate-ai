@@ -1,9 +1,10 @@
 name: Build
 
 on: 
-  - push
-  - workflow_call
-
+  workflow_call:
+    outputs:
+      package-version: ${{ jobs.build.outputs.package-version }}
+      
 jobs:
   build:
     outputs:
