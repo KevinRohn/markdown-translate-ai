@@ -2,11 +2,36 @@ name: Publish Python 🐍 distribution 📦 TestPyPI
 
 on:
   workflow_run:
-    workflows: [Build]
+    workflows: 
+      - "Build"
     types:
       - completed
+    branches: 
+      - main
 
 jobs:
+  check-version:
+    name: Check the version of the distribution 📦
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check latest version on testpypi
+        uses: KevinRohn/gh-action-pypi-package-version@v1.0.0
+        id: check-version
+        with:
+          package-name: markdown-translate-ai
+          endpoint: testpypi
+
+      - name: Compare local version with remote version
+        run: |
+          local_version=${{ github.event.workflow_run.jobs.build.outputs.package-version }}
+          testpypi_latest_version=${{ steps.check-version.outputs.latest-version }}
+          testpypi_release_versions=${{ steps.check-version.outputs.all-releases }}
+
+          echo "Local version: $local_version"
+          echo "TestPyPI latest version: $testpypi_latest_version"
+          echo "TestPyPI release versions: $testpypi_release_versions"
+
   publish-to-testpypi:
     name: Publish Python 🐍 distribution 📦 to TestPyPI
     if: ${{ github.event.workflow_run.conclusion == 'success' }}

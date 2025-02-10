@@ -1,9 +1,14 @@
 name: Build
 
-on: push
+on: 
+  - push
+  - workflow_call
 
 jobs:
   build:
+    outputs:
+      package-version: ${{ steps.info.outputs.package_version }}
+
     name: Build distribution 📦
     runs-on: ubuntu-latest
 
@@ -32,3 +37,23 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+
+      - name: Extract info
+        id: info
+        run: |
+          WHL_FILE=$(ls dist/*.whl | head -n 1)
+          TAR_FILE=$(ls dist/*.tar.gz | head -n 1)
+          PACKAGE_NAME=$(basename "$WHL_FILE" | cut -d'-' -f1)
+          PACKAGE_VERSION=$(basename "$WHL_FILE" | cut -d'-' -f2)
+
+          echo "whl_file=$WHL_FILE" >> $GITHUB_OUTPUT
+          echo "tar_file=$TAR_FILE" >> $GITHUB_OUTPUT
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Test install
+        run: |
+          python3 -m pip install ${{ steps.info.outputs.whl_file }}
+          python3 -m pip uninstall -y ${{ steps.info.outputs.package_name }}
+          python3 -m pip install ${{ steps.info.outputs.tar_file }}
+          python3 -m pip uninstall -y ${{ steps.info.outputs.package_name }}
+        
