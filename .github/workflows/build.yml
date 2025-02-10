@@ -8,7 +8,7 @@ jobs:
   build:
     outputs:
       package-version: ${{ steps.info.outputs.package_version }}
-      
+
     name: Build distribution 📦
     runs-on: ubuntu-latest
 
@@ -52,8 +52,8 @@ jobs:
 
       - name: Test install
         run: |
-          python3 -m pip install dist/${{ steps.info.outputs.whl_file }}
+          python3 -m pip install ${{ steps.info.outputs.whl_file }}
           python3 -m pip uninstall -y ${{ steps.info.outputs.package_name }}
-          python3 -m pip install dist/${{ steps.info.outputs.tar_file }}
+          python3 -m pip install ${{ steps.info.outputs.tar_file }}
           python3 -m pip uninstall -y ${{ steps.info.outputs.package_name }}
         
