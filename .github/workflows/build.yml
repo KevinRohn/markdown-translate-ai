@@ -3,8 +3,10 @@ name: Build
 on: 
   workflow_call:
     outputs:
-      package-version: ${{ jobs.build.outputs.package-version }}
-      
+      package-version: 
+        description: "The version of the package"
+        value: ${{ jobs.build.outputs.package-version }}
+
 jobs:
   build:
     outputs:
