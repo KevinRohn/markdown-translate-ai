@@ -49,8 +49,14 @@ jobs:
           PACKAGE_NAME=$(basename "$WHL_FILE" | cut -d'-' -f1)
           PACKAGE_VERSION=$(basename "$WHL_FILE" | cut -d'-' -f2)
 
+          echo "Found whl file: $WHL_FILE"
+          echo "Found tar file: $TAR_FILE"
+          echo "Found package: $PACKAGE_NAME"
+          echo "Found version: $PACKAGE_VERSION"
+
           echo "whl_file=$WHL_FILE" >> $GITHUB_OUTPUT
           echo "tar_file=$TAR_FILE" >> $GITHUB_OUTPUT
+          echo "package_version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
           echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Test install
