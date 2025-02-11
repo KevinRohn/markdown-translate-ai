@@ -1,12 +1,11 @@
 name: Publish package 📦 to TestPyPi
 
-on: push
-  #push:
-  #  branches:
-  #    - main
+on: 
+  push:
+    branches:
+      - main
 
 jobs:
-
   build:
     uses: ./.github/workflows/build.yml
 
