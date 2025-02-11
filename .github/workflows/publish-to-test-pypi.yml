@@ -1,41 +1,45 @@
-name: Publish Python 🐍 distribution 📦 TestPyPI
+name: Publish package 📦 to TestPyPi
 
-on:
-  workflow_run:
-    workflows: 
-      - "Build"
-    types:
-      - completed
-    branches: 
-      - main
+on: push
+  #push:
+  #  branches:
+  #    - main
 
 jobs:
+
+  build:
+    uses: ./.github/workflows/build.yml
+
   check-version:
+    needs: build
     name: Check the version of the distribution 📦
     runs-on: ubuntu-latest
 
     steps:
       - name: Check latest version on testpypi
-        uses: KevinRohn/gh-action-pypi-package-version@main
+        uses: KevinRohn/gh-action-pypi-package-version@v1
         id: check-version
         with:
           package-name: markdown-translate-ai
           endpoint: testpypi
 
-      - name: Compare local version with remote version
-        run: |
-          local_version=${{ github.event.workflow_run.jobs.build.outputs.package-version }}
+      - name: Check if the version is already published
+        run: | #shell
+          local_version=${{ needs.build.outputs.package-version }}
           testpypi_latest_version=${{ steps.check-version.outputs.latest-version }}
           testpypi_release_versions=${{ steps.check-version.outputs.all-releases }}
 
-          # Test outputs
-          echo "Local version: $local_version"
-          echo "TestPyPI latest version: $testpypi_latest_version"
-          echo "TestPyPI release versions: $testpypi_release_versions"
+          release_versions=(${testpypi_release_versions//[\[\]]/' '})
+
+          # Check if local version exists in release versions
+          if [[ " ${release_versions[@]} " =~ " ${local_version} " ]]; then
+            echo "::warning::The package version ${local_version} is already published to TestPyPI."
+            exit 1
+          fi
 
   publish-to-testpypi:
-    name: Publish Python 🐍 distribution 📦 to TestPyPI
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Publish to TestPyPI
+    needs: [build, check-version]
     runs-on: ubuntu-latest
 
     environment:
@@ -49,8 +53,6 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
         name: python-package-distributions
         path: dist/
         
@@ -58,9 +60,3 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
-
-  on-failure:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    steps:
-      - run: echo 'The triggering workflow failed'
