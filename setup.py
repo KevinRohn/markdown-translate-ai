@@ -14,7 +14,7 @@ INSTALL_REQUIRES = [
 
 setup(
     name="markdown-translate-ai",
-    version="0.1.0",
+    version=VERSION,
     description="Python package to translate markdown files with multiple AI service providers.",
     url="https://github.com/KevinRohn/markdown-translate-ai",
     project_urls={
