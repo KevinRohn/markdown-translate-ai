@@ -6,42 +6,42 @@ on:
 
 jobs:
   build:
-    name: Build distribution 📦
+    uses: ./.github/workflows/build.yml
+
+  check-version:
+    needs: build
+    name: Check the version of the distribution 📦
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
+      - name: Check latest version on PyPI
+        uses: KevinRohn/gh-action-pypi-package-version@v1
+        id: check-version
+        with:
+          package-name: markdown-translate-ai
+          endpoint: pypi
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
+      - name: Check if the version is already published
+        run: | #shell
+          local_version=${{ needs.build.outputs.package-version }}
+          testpypi_latest_version=${{ steps.check-version.outputs.latest-version }}
+          testpypi_release_versions=${{ steps.check-version.outputs.all-releases }}
 
-    - name: Install pypa/build
-      run: >-
-        python3 -m
-        pip install
-        build
-        --user
+          release_versions=(${testpypi_release_versions//[\[\]]/' '})
 
-    - name: Build a binary wheel and a source tarball
-      run: python3 -m build
-
-    - name: Store the distribution packages
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
+          # Check if local version exists in release versions
+          if [[ " ${release_versions[@]} " =~ " ${local_version} " ]]; then
+            echo "::warning::The package version ${local_version} is already published to TestPyPI."
+            exit 1
+          fi
 
   publish-to-pypi:
     name: >-
-      Publish Python 🐍 distribution 📦 to PyPI
+      Publish to PyPI
     if: startsWith(github.ref, 'refs/tags/') 
-    needs:
-    - build
+    needs: [build, check-version]
     runs-on: ubuntu-latest
+
     environment:
       name: pypi
       url: https://pypi.org/p/markdown-translate-ai
