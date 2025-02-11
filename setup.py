@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from pathlib import Path
 
 # Replaced during the build process
-VERSION="0.1.1"
+VERSION="0.1.2"
 NAME="markdown-translate-ai"
 
 INSTALL_REQUIRES = [
