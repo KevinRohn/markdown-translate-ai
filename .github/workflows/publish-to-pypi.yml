@@ -4,9 +4,14 @@ on:
   release:
     types: [created]
 
+env:
+  SKIP_REMOTE_VERSION_CHECK: true
+
+
 jobs:
   build:
     uses: ./.github/workflows/build.yml
+
 
   check-version:
     needs: build
@@ -15,6 +20,7 @@ jobs:
 
     steps:
       - name: Check latest version on PyPI
+        if: ${{ env.SKIP_REMOTE_VERSION_CHECK != 'true' }}
         uses: KevinRohn/gh-action-pypi-package-version@v1
         id: check-version
         with:
@@ -22,6 +28,7 @@ jobs:
           endpoint: pypi
 
       - name: Check if the version is already published
+        if: ${{ env.SKIP_REMOTE_VERSION_CHECK != 'true' }}
         run: | #shell
           local_version=${{ needs.build.outputs.package-version }}
           testpypi_latest_version=${{ steps.check-version.outputs.latest-version }}
