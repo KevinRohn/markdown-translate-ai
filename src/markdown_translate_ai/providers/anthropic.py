@@ -2,9 +2,9 @@ import os
 import httpx
 import time
 
-from providers.base import APIClient
-from config.models_config import ModelInfo
-from util.statistics import APICallStatistics, TokenUsageTracker
+from markdown_translate_ai.providers.base import APIClient
+from markdown_translate_ai.config.models_config import ModelInfo
+from markdown_translate_ai.util.statistics import APICallStatistics, TokenUsageTracker
 
 class AnthropicClient(APIClient):
     """Anthropic API client implementation"""

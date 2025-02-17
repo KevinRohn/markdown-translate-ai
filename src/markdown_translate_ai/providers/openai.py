@@ -2,9 +2,9 @@ import os
 from typing import Dict
 from openai import OpenAI
 
-from providers.base import APIClient
-from config.models_config import ModelInfo
-from util.statistics import APICallStatistics, TokenUsageTracker
+from markdown_translate_ai.providers.base import APIClient
+from markdown_translate_ai.config.models_config import ModelInfo
+from markdown_translate_ai.util.statistics import APICallStatistics, TokenUsageTracker
 
 class OpenAIClient(APIClient):
     """OpenAI API client implementation"""

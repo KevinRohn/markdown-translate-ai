@@ -5,15 +5,15 @@ import json
 from typing import Tuple, Dict, Any
 import marko
 
-from util.validator import ConfigValidator
-from util.statistics import APICallStatistics
-from config.models_config import ModelsRegistry, ModelInfo, ServiceProvider
-from config.prompts import SYSTEM_PROMPT, USER_PROMPT_FIRST, USER_PROMPT_SECOND_WO_SYSTEM
-from providers.base import APIClient
-from providers.openai import OpenAIClient
-from providers.anthropic import AnthropicClient
-from providers.gemini import GeminiClient
-from providers.deepseek import DeepSeekClient
+from markdown_translate_ai.util.validator import ConfigValidator
+from markdown_translate_ai.util.statistics import APICallStatistics
+from markdown_translate_ai.config.models_config import ModelsRegistry, ModelInfo, ServiceProvider
+from markdown_translate_ai.config.prompts import SYSTEM_PROMPT, USER_PROMPT_FIRST, USER_PROMPT_SECOND_WO_SYSTEM
+from markdown_translate_ai.providers.base import APIClient
+from markdown_translate_ai.providers.openai import OpenAIClient
+from markdown_translate_ai.providers.anthropic import AnthropicClient
+from markdown_translate_ai.providers.gemini import GeminiClient
+from markdown_translate_ai.providers.deepseek import DeepSeekClient
 
 
 class MarkdownProcessor:

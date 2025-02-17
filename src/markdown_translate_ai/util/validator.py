@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from pathlib import Path
-from config.models_config import ModelsRegistry, ServiceProvider
+from markdown_translate_ai.config.models_config import ModelsRegistry, ServiceProvider
 
 
 class ConfigValidator:
