@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: 
       - staging
+    types:
+      - closed
+      - opened
+      - reopened
 
 jobs:
   build:
@@ -38,7 +42,7 @@ jobs:
 
   publish-to-testpypi:
     name: Publish to TestPyPI
-    if: ${{ github.event.pull_request.merged }}
+    if: ${{ github.event.action == 'closed' && github.event.pull_request.merged == true }}
     needs: [build, check-version]
     runs-on: ubuntu-latest
     environment:
