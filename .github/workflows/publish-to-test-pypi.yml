@@ -1,9 +1,13 @@
 name: Publish package 📦 to TestPyPi
 
-on: 
+on:
+  pull_request:
+    branches: 
+      - staging
+    types: [closed]
   push:
     branches:
-      - main
+      - staging
 
 jobs:
   build:
@@ -38,9 +42,9 @@ jobs:
 
   publish-to-testpypi:
     name: Publish to TestPyPI
+    if: ${{ github.event.pull_request.merged }}
     needs: [build, check-version]
     runs-on: ubuntu-latest
-
     environment:
       name: testpypi
       url: https://test.pypi.org/p/markdown-translate-ai

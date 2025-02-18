@@ -5,13 +5,11 @@ on:
     types: [created]
 
 env:
-  SKIP_REMOTE_VERSION_CHECK: true
-
+  SKIP_REMOTE_VERSION_CHECK: false
 
 jobs:
   build:
     uses: ./.github/workflows/build.yml
-
 
   check-version:
     needs: build
