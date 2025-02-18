@@ -32,8 +32,8 @@ jobs:
           testpypi_latest_version=${{ steps.check-version.outputs.latest-version }}
           testpypi_release_versions=${{ steps.check-version.outputs.all-releases }}
 
-          release_versions=(${testpypi_release_versions//[\[\]]/' '})
-
+          release_versions=(${testpypi_release_versions//[\[\],\"]/' '})
+      
           # Check if local version exists in release versions
           if [[ " ${release_versions[@]} " =~ " ${local_version} " ]]; then
             echo "::warning::The package version ${local_version} is already published to TestPyPI."
