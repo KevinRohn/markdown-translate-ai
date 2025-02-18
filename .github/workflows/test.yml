@@ -47,8 +47,8 @@ jobs:
       - name: Test translation file
         id: file_info
         run: | # shell
-          echo "$source_file=example/test-file1-en.md" >> $GITHUB_OUTPUT
-          echo "$target_file=example/test-file1-${{ matrix.target-language }}.md" >> $GITHUB_OUTPUT
+          echo "source_file=example/test-file1-en.md" >> $GITHUB_OUTPUT
+          echo "target_file=example/test-file1-${{ matrix.target-language }}.md" >> $GITHUB_OUTPUT
       
       - name: Select API key based on Service provider
         run: | # shell
