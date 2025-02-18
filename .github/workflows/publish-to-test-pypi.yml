@@ -8,6 +8,7 @@ on:
       - closed
       - opened
       - reopened
+
 jobs:
   build:
     uses: ./.github/workflows/build.yml
