@@ -75,7 +75,6 @@ jobs:
             ${{ steps.file_info.outputs.target_file }} \
             ${{ matrix.target-language }} \
             --model ${{ matrix.model }} \
-            --service-provider ${{ matrix.service-provider }}
             --stats-file
             
         env: # The API Key is selected based on the service provider
