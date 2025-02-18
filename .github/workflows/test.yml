@@ -110,3 +110,28 @@ jobs:
           fi
 
           echo "::endgroup::"
+
+      - name: Show Summary output
+        shell: bash
+        run: | # shell
+          echo "## Translation summary for ${{ matrix.model }} (${{ matrix.service-provider }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total tokens | **${{ steps.statistics.outputs.total_tokens_used }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Input tokens | **${{ steps.statistics.outputs.input_tokens_used }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Output tokens | **${{ steps.statistics.outputs.output_tokens_used }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Duration | **${{ steps.statistics.outputs.duration_seconds }}** seconds |" >> $GITHUB_STEP_SUMMARY
+
+          echo "<details><summary>Source content</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat ${{ steps.file_info.outputs.source_file }} >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "<details><summary>Translated content in ${{ matrix.target-language }}</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat ${{ steps.file_info.outputs.target_file }} >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
