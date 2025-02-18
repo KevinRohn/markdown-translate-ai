@@ -1,0 +1,144 @@
+name: Test installation and translation build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  check-from-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch for master
+        run: |
+          if [[ "${{ github.event.pull_request.head.ref }}" != "staging" ]]; then
+            echo "You can only create a PR into master from the staging branch."
+            exit 1
+          fi
+
+  test-translation-source:
+    needs: check-from-staging
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+          model:
+            - gpt-4o
+            - claude-3.5-sonnet
+          include:
+            - model: gpt-4o
+              service-provider: openai
+              target-language: 'German'
+            - model: claude-3.5-sonnet
+              service-provider: anthropic
+              target-language: 'German'
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install package
+        shell: bash
+        run: | # shell
+          echo "::group::Install dependencies"
+
+          python -m pip install --upgrade pip
+          pip install -e .
+          echo "::endgroup::"
+
+      - name: Test translation file
+        id: file_info
+        run: | # shell
+          echo "source_file=example/test-file1-en.md" >> $GITHUB_OUTPUT
+          echo "target_file=example/test-file1-${{ matrix.target-language }}.md" >> $GITHUB_OUTPUT
+      
+      - name: Select API key based on Service provider
+        run: | # shell
+          case ${{ matrix.service-provider }} in
+            openai)
+              echo "API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+              ;;
+            anthropic)
+              echo "API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+              ;;
+            gemini)
+              echo "API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+              ;;
+            deepseek)
+              echo "API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
+              ;;
+          esac
+        
+      - name: Translate the source file
+        run: | # shell
+
+          python src/markdown_translate_ai/translator.py \
+            ${{ steps.file_info.outputs.source_file }} \
+            ${{ steps.file_info.outputs.target_file }} \
+            ${{ matrix.target-language }} \
+            --model ${{ matrix.model }} \
+            --stats-file
+            
+        env: # The API Key is selected based on the service provider
+          OPENAI_API_KEY: ${{ env.API_KEY }}
+          ANTHROPIC_API_KEY: ${{ env.API_KEY }}
+          DEEPSEEK_API_KEY: ${{ env.API_KEY }}
+          GEMINI_API_KEY: ${{ env.API_KEY }}
+
+      - name: Extract statistics
+        shell: bash
+        id: statistics
+        run: | # shell
+          echo "::group::Extract statistics"
+
+          if [[ -f "${{ steps.file_info.outputs.target_file }}.stats.json" ]]; then
+            total_tokens_used=$(jq -r '.token_usage.total_tokens' ${{ steps.file_info.outputs.target_file }}.stats.json)
+            input_tokens_used=$(jq -r '.token_usage.input_tokens' ${{ steps.file_info.outputs.target_file }}.stats.json)
+            output_tokens_used=$(jq -r '.token_usage.output_tokens' ${{ steps.file_info.outputs.target_file }}.stats.json)
+            duration_seconds=$(jq -r '.api_calls.duration_seconds' ${{ steps.file_info.outputs.target_file }}.stats.json)
+
+            rm ${{ steps.file_info.outputs.target_file }}.stats.json
+
+            echo "total_tokens_used=$total_tokens_used" >> $GITHUB_OUTPUT
+            echo "input_tokens_used=$input_tokens_used" >> $GITHUB_OUTPUT
+            echo "output_tokens_used=$output_tokens_used" >> $GITHUB_OUTPUT
+            echo "duration_seconds=$duration_seconds" >> $GITHUB_OUTPUT
+          else
+            echo "No statistics file found."
+            echo "total_tokens_used=0" >> $GITHUB_OUTPUT
+            echo "input_tokens_used=0" >> $GITHUB_OUTPUT
+            echo "output_tokens_used=0" >> $GITHUB_OUTPUT
+            echo "duration_seconds=0" >> $GITHUB_OUTPUT
+          fi
+
+          echo "::endgroup::"
+
+      - name: Show Summary output
+        shell: bash
+        run: | # shell
+          echo "## Translation summary for ${{ matrix.model }} (${{ matrix.service-provider }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total tokens | **${{ steps.statistics.outputs.total_tokens_used }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Input tokens | **${{ steps.statistics.outputs.input_tokens_used }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Output tokens | **${{ steps.statistics.outputs.output_tokens_used }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Duration | **${{ steps.statistics.outputs.duration_seconds }}** seconds |" >> $GITHUB_STEP_SUMMARY
+
+          echo "<details><summary>Source content</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat ${{ steps.file_info.outputs.source_file }} >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "<details><summary>Translated content in ${{ matrix.target-language }}</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat ${{ steps.file_info.outputs.target_file }} >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
