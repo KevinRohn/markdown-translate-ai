@@ -2,7 +2,7 @@
 
 This application allows you to translate Markdown files using various AI models.
 
-## Install with pip
+## Install with pip (production)
 
 This package is available on PyPi, so you can install it with pip
 
@@ -15,6 +15,15 @@ Ensure you have Python installed and install the required dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+
+### Editable installation
+
+This allows to make changes to the code and have them reflected immediately without reinstalling the package.
+
+```bash
+pip install -e .
+```
+
 
 ## Environment Variables (API Keys)
 
