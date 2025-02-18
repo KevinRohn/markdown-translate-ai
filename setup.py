@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 from pathlib import Path
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 NAME = "markdown-translate-ai"
 
 INSTALL_REQUIRES = [
