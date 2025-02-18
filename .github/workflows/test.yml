@@ -11,13 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check source branch for master
-        if: github.ref == 'refs/heads/master'
         run: |
           if [[ "${{ github.event.pull_request.head.ref }}" != "staging" ]]; then
             echo "You can only create a PR into master from the staging branch."
             exit 1
           fi
-          
+
   test-translation-source:
     runs-on: ubuntu-latest
     strategy:
