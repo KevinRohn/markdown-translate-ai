@@ -18,6 +18,7 @@ jobs:
           fi
 
   test-translation-source:
+    needs: check-from-staging
     runs-on: ubuntu-latest
     strategy:
       matrix:
