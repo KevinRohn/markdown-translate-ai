@@ -1,6 +1,7 @@
 import argparse
 import os
-
+import re
+from difflib import SequenceMatcher
 import logging
 import json
 from typing import Tuple, Dict, Any
@@ -138,39 +139,166 @@ class TranslationManager:
         """Clean up resources"""
         self.client.cleanup()
 
+class DiffTranslator:
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
 
+    def get_markdown(self, node) -> str:
+        """Return a markdown representation using MarkdownRenderer."""
+        from marko.md_renderer import MarkdownRenderer
+        renderer = MarkdownRenderer()
+        return renderer.render(node).strip()
+
+    def find_changed_blocks(self, old_source: str, new_source: str) -> list[tuple[int, str]]:
+        """Find changed block-level markdown elements using marko AST.
+        
+        The returned block texts are extracted as markdown
+        Deletions are marked with an empty string.
+        """
+        old_doc = marko.parse(old_source)
+        new_doc = marko.parse(new_source)
+        old_blocks = [self.get_markdown(child) for child in old_doc.children if self.get_markdown(child)]
+        new_blocks = [self.get_markdown(child) for child in new_doc.children if self.get_markdown(child)]
+
+        self.logger.info(f"Comparing blocks - Old blocks: {len(old_blocks)}, New blocks: {len(new_blocks)}")
+        matcher = SequenceMatcher(None, old_blocks, new_blocks)
+        changed_blocks = []
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag in ('replace', 'insert'):
+                block_text = "\n\n".join(new_blocks[j1:j2]).strip()
+                if block_text:
+                    self.logger.info(f"Found {tag} starting at nnew block index {j1}: {block_text[:100]}...")
+                    changed_blocks.append((j1, block_text))
+            elif tag == 'delete':
+                self.logger.info(f"Found deletion at old block indices {i1}-{i2}, corresponding new index {j1}")
+                # Mark deletion with an empty string.
+                changed_blocks.append((j1, ""))
+        self.logger.info(f"Found {len(changed_blocks)} changed blocks")
+        return changed_blocks
+
+    def merge_translations(self, old_source: str, new_source: str, old_translation: str,
+                           new_block_translations: list[tuple[int, str]]) -> str:
+        """Merge translations aligning the new source with the old translation.
+
+        Uses a diff between the old and new source block lists:
+          - For equal regions, preserves the corresponding blocks from old_translation.
+          - For insert/replace regions, uses the translated blocks if provided,
+            otherwise falls back to the new source block.
+        """
+
+        old_doc = marko.parse(old_source)
+        new_doc = marko.parse(new_source)
+        trans_doc = marko.parse(old_translation)
+        old_blocks = [self.get_markdown(child) for child in old_doc.children if self.get_markdown(child)]
+        new_blocks = [self.get_markdown(child) for child in new_doc.children if self.get_markdown(child)]
+        trans_blocks = [self.get_markdown(child) for child in trans_doc.children if self.get_markdown(child)]
+        
+        changed_dict = { idx: text for idx, text in new_block_translations }
+        matcher = SequenceMatcher(None, old_blocks, new_blocks)
+        merged = []
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                for k in range(j1, j2):
+                    if k < len(trans_blocks):
+                        merged.append(trans_blocks[k])
+                    else:
+                        merged.append(new_blocks[k])
+            elif tag in ("replace", "insert"):
+                for k in range(j1, j2):
+                    if k in changed_dict:
+                        merged.append(changed_dict[k])
+                    else:
+                        merged.append(new_blocks[k])
+            elif tag == "delete":
+                # Deleted blocks: omit.
+                continue
+        result = "\n\n".join(merged)
+        result = re.sub(r'\n{3,}', '\n\n', result)
+        return result.strip()
+    
 class TranslationJob:
     """Handles a complete translation job"""
     def __init__(self, args: argparse.Namespace, model_info: ModelInfo):
         self.args = args
         self.model_info = model_info
         self.translator = TranslationManager(model_info, args.debug)
+        self.diff_translator = DiffTranslator()
 
     def run(self) -> None:
         """Execute the translation job"""
         try:
-            # Read input
+            self.logger = logging.getLogger(__name__)
+            self.logger.info(f"Starting translation job for {self.args.input_file}")
+            
             with open(self.args.input_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Translate
-            translated = self.translator.translate(
-                content,
-                self.args.source_lang,
-                self.args.target_lang
-            )
-            
+                new_source = f.read()
+
+            if self.args.update_mode:
+                self.logger.info("Running in update mode")
+                old_source = ""
+                if self.args.previous_source:
+                    with open(self.args.previous_source, 'r', encoding='utf-8') as f:
+                        old_source = f.read()
+                    self.logger.info(f"Loaded previous source: {self.args.previous_source}")
+                else:
+                    self.logger.warning("No previous source file provided for update mode")
+
+                if old_source:
+                    self.logger.info("Performing selective translation of changed content")
+                    changed_blocks = self.diff_translator.find_changed_blocks(old_source, new_source)
+
+                    translated_blocks = []
+                    for idx, block in changed_blocks:
+                        self.logger.info(f"Translating block {idx} ({len(block)} chars)")
+                        translated = self.translator.translate(
+                            block,
+                            self.args.source_lang,
+                            self.args.target_lang
+                        )
+                        translated_blocks.append((idx, translated))
+
+                    if os.path.exists(self.args.output_file):
+                        with open(self.args.output_file, 'r', encoding='utf-8') as f:
+                            old_translation = f.read()
+                        self.logger.info(f"Loaded existing translation: {self.args.output_file}")
+                    else:
+                        self.logger.warning("No existing translated file found; using new source as fallback")
+                        old_translation = new_source
+
+                    translated = self.diff_translator.merge_translations(
+                        old_source,
+                        new_source,
+                        old_translation,
+                        translated_blocks
+                    )
+                    self.logger.info(f"Merged {len(translated_blocks)} translated blocks")
+                else:
+                    self.logger.warning("Falling back to full translation mode")
+                    translated = self.translator.translate(
+                        new_source,
+                        self.args.source_lang,
+                        self.args.target_lang
+                    )
+            else:
+                self.logger.info("Running in full translation mode")
+                translated = self.translator.translate(
+                    new_source,
+                    self.args.source_lang,
+                    self.args.target_lang
+                )
+
             # Write output
             with open(self.args.output_file, 'w', encoding='utf-8') as f:
                 f.write(translated)
+            self.logger.info(f"Wrote {len(translated)} characters to {self.args.output_file}")
             
-            # Handle statistics
             if self.args.stats_file:
                 stats_file = f"{self.args.output_file}.stats.json"
+                stats = self.translator.get_statistics()
                 with open(stats_file, 'w', encoding='utf-8') as f:
-                    json.dump(self.translator.get_statistics(), f, indent=2)
-            
-            logging.info(f"Translation completed: {self.args.output_file}")
+                    json.dump(stats, f, indent=2)
+                self.logger.info(f"Wrote statistics to {stats_file}")
+                self.logger.debug(f"Statistics: {json.dumps(stats, indent=2)}")
             
         finally:
             self.translator.cleanup()
@@ -200,10 +328,21 @@ def parse_arguments() -> Tuple[argparse.Namespace, ModelInfo]:
         help='Enable debug logging'
     )
     parser.add_argument(
+        '--update-mode',
+        action='store_true',
+        help='Enable update mode for selective translation'
+    )
+    parser.add_argument(
+        '--previous-source',
+        type=str,
+        help='Path to previous version of source file for comparison'
+    )
+    parser.add_argument(
         '--stats-file',
         action='store_true',
         help='Output statistics to a separate file'
     )
+
     
     args = parser.parse_args()
     
