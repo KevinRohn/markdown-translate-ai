@@ -2,6 +2,7 @@ import argparse
 import os
 import re
 from difflib import SequenceMatcher
+import hashlib
 import logging
 import json
 from typing import Tuple, Dict, Any
@@ -139,6 +140,9 @@ class TranslationManager:
         """Clean up resources"""
         self.client.cleanup()
 
+def get_block_id(text: str) -> str:
+    return hashlib.md5(text.strip().encode('utf-8')).hexdigest()
+
 class DiffTranslator:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -153,7 +157,7 @@ class DiffTranslator:
         """Find changed block-level markdown elements using marko AST.
         
         The returned block texts are extracted as markdown
-        Deletions are marked with an empty string.
+        Deletions are marked with an emnpty string.
         """
         old_doc = marko.parse(old_source)
         new_doc = marko.parse(new_source)
@@ -167,25 +171,21 @@ class DiffTranslator:
             if tag in ('replace', 'insert'):
                 block_text = "\n\n".join(new_blocks[j1:j2]).strip()
                 if block_text:
-                    self.logger.info(f"Found {tag} starting at nnew block index {j1}: {block_text[:100]}...")
+                    self.logger.info(f"Found {tag} starting at new block index {j1}: {block_text[:100]}...")
                     changed_blocks.append((j1, block_text))
             elif tag == 'delete':
                 self.logger.info(f"Found deletion at old block indices {i1}-{i2}, corresponding new index {j1}")
-                # Mark deletion with an empty string.
                 changed_blocks.append((j1, ""))
         self.logger.info(f"Found {len(changed_blocks)} changed blocks")
         return changed_blocks
 
     def merge_translations(self, old_source: str, new_source: str, old_translation: str,
                            new_block_translations: list[tuple[int, str]]) -> str:
-        """Merge translations aligning the new source with the old translation.
-
-        Uses a diff between the old and new source block lists:
-          - For equal regions, preserves the corresponding blocks from old_translation.
-          - For insert/replace regions, uses the translated blocks if provided,
-            otherwise falls back to the new source block.
         """
-
+        Sequentially merge translations using the diff opcodes.
+        new_block_translations is a list of tuples (new_index, translated_text)
+        obtained from find_changed_blocks (with index from new source).
+        """
         old_doc = marko.parse(old_source)
         new_doc = marko.parse(new_source)
         trans_doc = marko.parse(old_translation)
@@ -193,25 +193,38 @@ class DiffTranslator:
         new_blocks = [self.get_markdown(child) for child in new_doc.children if self.get_markdown(child)]
         trans_blocks = [self.get_markdown(child) for child in trans_doc.children if self.get_markdown(child)]
         
-        changed_dict = { idx: text for idx, text in new_block_translations }
         matcher = SequenceMatcher(None, old_blocks, new_blocks)
+
+        changed_sorted = sorted(new_block_translations, key=lambda t: t[0])
+        changed_iter = iter(changed_sorted)
+        try:
+            current_changed = next(changed_iter)
+        except StopIteration:
+            current_changed = None
+        
         merged = []
+
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == "equal":
-                for k in range(j1, j2):
-                    if k < len(trans_blocks):
-                        merged.append(trans_blocks[k])
+                for offset, new_idx in enumerate(range(j1, j2)):
+                    old_idx = i1 + offset
+                    if old_idx < len(trans_blocks):
+                        merged.append(trans_blocks[old_idx])
                     else:
-                        merged.append(new_blocks[k])
-            elif tag in ("replace", "insert"):
-                for k in range(j1, j2):
-                    if k in changed_dict:
-                        merged.append(changed_dict[k])
+                        merged.append(new_blocks[new_idx])
+            elif tag in ("insert", "replace"):
+                for new_idx in range(j1, j2):
+                    if current_changed and current_changed[0] == new_idx:
+                        merged.append(current_changed[1])
+                        try:
+                            current_changed = next(changed_iter)
+                        except StopIteration:
+                            current_changed = None
                     else:
-                        merged.append(new_blocks[k])
+                        merged.append(new_blocks[new_idx])
             elif tag == "delete":
-                # Deleted blocks: omit.
                 continue
+        
         result = "\n\n".join(merged)
         result = re.sub(r'\n{3,}', '\n\n', result)
         return result.strip()
@@ -232,53 +245,49 @@ class TranslationJob:
             
             with open(self.args.input_file, 'r', encoding='utf-8') as f:
                 new_source = f.read()
-
+            
+            old_source = ""
             if self.args.update_mode:
                 self.logger.info("Running in update mode")
-                old_source = ""
                 if self.args.previous_source:
                     with open(self.args.previous_source, 'r', encoding='utf-8') as f:
                         old_source = f.read()
                     self.logger.info(f"Loaded previous source: {self.args.previous_source}")
                 else:
                     self.logger.warning("No previous source file provided for update mode")
+            
+            if old_source:
+                self.logger.info("Performing selective translation of changed content")
+                changed_blocks = self.diff_translator.find_changed_blocks(old_source, new_source)
 
-                if old_source:
-                    self.logger.info("Performing selective translation of changed content")
-                    changed_blocks = self.diff_translator.find_changed_blocks(old_source, new_source)
-
-                    translated_blocks = []
-                    for idx, block in changed_blocks:
-                        self.logger.info(f"Translating block {idx} ({len(block)} chars)")
-                        translated = self.translator.translate(
-                            block,
-                            self.args.source_lang,
-                            self.args.target_lang
-                        )
-                        translated_blocks.append((idx, translated))
-
-                    if os.path.exists(self.args.output_file):
-                        with open(self.args.output_file, 'r', encoding='utf-8') as f:
-                            old_translation = f.read()
-                        self.logger.info(f"Loaded existing translation: {self.args.output_file}")
-                    else:
-                        self.logger.warning("No existing translated file found; using new source as fallback")
-                        old_translation = new_source
-
-                    translated = self.diff_translator.merge_translations(
-                        old_source,
-                        new_source,
-                        old_translation,
-                        translated_blocks
-                    )
-                    self.logger.info(f"Merged {len(translated_blocks)} translated blocks")
-                else:
-                    self.logger.warning("Falling back to full translation mode")
+                translated_blocks = []
+                for new_index, block in changed_blocks:
+                    if not block.strip():
+                        self.logger.info(f"Skipping translation for empty block at new index {new_index}")
+                        continue  # Do not add empty block
+                    self.logger.info(f"Translating block at new index {new_index} ({len(block)} chars)")
                     translated = self.translator.translate(
-                        new_source,
+                        block,
                         self.args.source_lang,
                         self.args.target_lang
                     )
+                    translated_blocks.append((new_index, translated))
+
+                if os.path.exists(self.args.output_file):
+                    with open(self.args.output_file, 'r', encoding='utf-8') as f:
+                        old_translation = f.read()
+                    self.logger.info(f"Loaded existing translation: {self.args.output_file}")
+                else:
+                    self.logger.warning("No existing translated file found; using new source as fallback")
+                    old_translation = new_source
+
+                translated = self.diff_translator.merge_translations(
+                    old_source,
+                    new_source,
+                    old_translation,
+                    translated_blocks
+                )
+                self.logger.info(f"Merged {len(translated_blocks)} translated blocks")
             else:
                 self.logger.info("Running in full translation mode")
                 translated = self.translator.translate(
@@ -286,8 +295,7 @@ class TranslationJob:
                     self.args.source_lang,
                     self.args.target_lang
                 )
-
-            # Write output
+    
             with open(self.args.output_file, 'w', encoding='utf-8') as f:
                 f.write(translated)
             self.logger.info(f"Wrote {len(translated)} characters to {self.args.output_file}")
