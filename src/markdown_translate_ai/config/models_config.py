@@ -96,6 +96,12 @@ class ModelsRegistry:
                 description="Claude 3.5 Sonnet",
                 max_tokens=4096
             ),
+            "claude-3.7-sonnet-latest": ModelInfo(
+                name="claude-3-7-sonnet-latest",
+                provider=ServiceProvider.ANTHROPIC,
+                description="Claude 3.7 Sonnet",
+                max_tokens=8192
+            ),
             "claude-3.5-sonnet-latest": ModelInfo(
                 name="claude-3-5-sonnet-latest",
                 provider=ServiceProvider.ANTHROPIC,
