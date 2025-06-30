@@ -2,3 +2,4 @@ openai
 httpx 
 marko
 httpx[http2]
+python-dotenv

@@ -17,7 +17,11 @@ from markdown_translate_ai.providers.openai import OpenAIClient
 from markdown_translate_ai.providers.anthropic import AnthropicClient
 from markdown_translate_ai.providers.gemini import GeminiClient
 from markdown_translate_ai.providers.deepseek import DeepSeekClient
-
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass # dotenv is optional, can be used for local development
 
 class MarkdownProcessor:
     """Handles markdown processing and cleanup"""
