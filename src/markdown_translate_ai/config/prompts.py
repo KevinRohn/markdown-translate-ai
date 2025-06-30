@@ -1,3 +1,6 @@
+import os
+import logging 
+
 """Translation prompts for different providers with enhanced Markdown handling."""
 
 SYSTEM_PROMPT = """You are an expert Markdown documentation translator. Your task is to translate from {source_lang} to {target_lang} while maintaining perfect Markdown structure and preserving all technical elements.
@@ -53,6 +56,15 @@ CORE RULES - FOLLOW THESE EXACTLY:
 Text to translate:
 {text}"""
 
+if _sys_prompt_file := os.getenv("MD_AI_SYSTEM_PROMPT_FILE"):
+      try:
+         with open(_sys_prompt_file, "r", encoding="utf-8") as file:
+               SYSTEM_PROMPT = file.read()
+      except FileNotFoundError:
+         logging.warning(f"System prompt file '{_sys_prompt_file}' not found. Creating it.")
+         with open(_sys_prompt_file, "w", encoding="utf-8") as file:
+            file.write(SYSTEM_PROMPT)
+
 USER_PROMPT_FIRST = """Translate this Markdown content from {source_lang} to {target_lang}.
 Your output must maintain identical Markdown structure.
 
@@ -67,6 +79,15 @@ KEY REQUIREMENTS:
 Content to translate:
 
 {text}"""
+
+if _user_prompt_file := os.getenv("MD_AI_USER_PROMPT_FILE"):
+    try:
+        with open(_user_prompt_file, "r", encoding="utf-8") as file:
+            USER_PROMPT_FIRST = file.read()
+    except FileNotFoundError:
+         logging.warning(f"User prompt file '{_user_prompt_file}' not found. Creating it.")
+         with open(_user_prompt_file, "w", encoding="utf-8") as file:
+            file.write(USER_PROMPT_FIRST)
 
 USER_PROMPT_SECOND_WO_SYSTEM = """Translate this Markdown documentation from {source_lang} to {target_lang}.
 
@@ -100,3 +121,12 @@ STRICT REQUIREMENTS:
 Content to translate:
 
 {text}"""
+
+if _user_prompt_second_file := os.getenv("MD_AI_USER_PROMPT_SECOND_FILE"):
+    try:
+        with open(_user_prompt_second_file, "r", encoding="utf-8") as file:
+            USER_PROMPT_SECOND_WO_SYSTEM = file.read()
+    except FileNotFoundError:
+        logging.warning(f"User prompt second file '{_user_prompt_second_file}' not found. Creating it.")
+        with open(_user_prompt_second_file, "w", encoding="utf-8") as file:
+            file.write(USER_PROMPT_SECOND_WO_SYSTEM)
