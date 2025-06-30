@@ -61,7 +61,9 @@ if _sys_prompt_file := os.getenv("MD_AI_SYSTEM_PROMPT_FILE"):
          with open(_sys_prompt_file, "r", encoding="utf-8") as file:
                SYSTEM_PROMPT = file.read()
       except FileNotFoundError:
-         logging.warning(f"System prompt file '{_sys_prompt_file}' not found. Using default system prompt.")
+         logging.warning(f"System prompt file '{_sys_prompt_file}' not found. Creating it.")
+         with open(_sys_prompt_file, "w", encoding="utf-8") as file:
+            file.write(SYSTEM_PROMPT)
 
 USER_PROMPT_FIRST = """Translate this Markdown content from {source_lang} to {target_lang}.
 Your output must maintain identical Markdown structure.
@@ -83,7 +85,9 @@ if _user_prompt_file := os.getenv("MD_AI_USER_PROMPT_FILE"):
         with open(_user_prompt_file, "r", encoding="utf-8") as file:
             USER_PROMPT_FIRST = file.read()
     except FileNotFoundError:
-        logging.warning(f"User prompt file '{_user_prompt_file}' not found. Using default user prompt.")
+         logging.warning(f"User prompt file '{_user_prompt_file}' not found. Creating it.")
+         with open(_user_prompt_file, "w", encoding="utf-8") as file:
+            file.write(USER_PROMPT_FIRST)
 
 USER_PROMPT_SECOND_WO_SYSTEM = """Translate this Markdown documentation from {source_lang} to {target_lang}.
 
@@ -123,4 +127,6 @@ if _user_prompt_second_file := os.getenv("MD_AI_USER_PROMPT_SECOND_FILE"):
         with open(_user_prompt_second_file, "r", encoding="utf-8") as file:
             USER_PROMPT_SECOND_WO_SYSTEM = file.read()
     except FileNotFoundError:
-        logging.warning(f"User prompt second file '{_user_prompt_second_file}' not found. Using default user prompt.")
+        logging.warning(f"User prompt second file '{_user_prompt_second_file}' not found. Creating it.")
+        with open(_user_prompt_second_file, "w", encoding="utf-8") as file:
+            file.write(USER_PROMPT_SECOND_WO_SYSTEM)
