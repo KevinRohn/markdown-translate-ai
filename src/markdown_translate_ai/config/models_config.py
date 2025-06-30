@@ -64,6 +64,24 @@ class ModelsRegistry:
                 description="GPT-4 Turbo",
                 max_tokens= 4096
             ),
+            "gpt-4.1-nano": ModelInfo(
+                name="gpt-4.1-nano",
+                provider=ServiceProvider.OPENAI,
+                description="GPT-4.1 Nano",
+                max_tokens= 16384
+            ),
+            "gpt-4.1-mini": ModelInfo(
+                name="gpt-4.1-mini",
+                provider=ServiceProvider.OPENAI,
+                description="GPT-4.1 mini",
+                max_tokens= 6000
+            ),
+            "gpt-4.1": ModelInfo(
+                name="gpt-4.1",
+                provider=ServiceProvider.OPENAI,
+                description="GPT-4.1",
+                max_tokens= 6000
+            ),
             "o1": ModelInfo(
                 name="o1",
                 provider=ServiceProvider.OPENAI,
